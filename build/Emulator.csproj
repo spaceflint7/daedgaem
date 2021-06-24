@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+
+    <!-- Configurations:
+          Debug   - Windows debug build with debugger support
+          Release - Windows release build without debugger
+          Android - Android release build without debugger
+    -->
+    <Configurations>Debug;Release;Android</Configurations>
+
+    <TargetFramework>net5.0-windows</TargetFramework>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <ImportNuGetBuildTasksPackTargetsFromSdk>false</ImportNuGetBuildTasksPackTargetsFromSdk>
+
+    <!-- disable some unneeded build products -->
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
+
+    <!-- Output paths:
+          .obj/packages for .Net packages (see Directory.Build.Props file)
+          .obj/intermediate for intermediate build products
+          .obj for final build product
+     -->
+    <IntermediateOutputPath>.obj/intermediate</IntermediateOutputPath>
+    <OutputPath>.obj/</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="src/*.cs" />
+    <Compile Include="src/x86/*.cs" />
+  </ItemGroup>
+
+  <Import Project="$(Configuration).csproj" />
+
+</Project>

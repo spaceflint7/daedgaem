@@ -1,0 +1,6 @@
+.obj/
+.vs/
+packages/
+/TODO
+_OLD/
+build/AndroidKeystore*

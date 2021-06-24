@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.spaceflint.daedgaem"
+    android:versionCode="1"
+    android:versionName="1.0" >
+
+    <!-- API 18, GLES 3.0 -->
+    <!-- note that if testing in the Android emulator, you may need to add
+         the following line in your ~/.android/advancedFeatures.ini file:
+                GLESDynamicVersion=on
+    !-->
+    <uses-sdk android:minSdkVersion="18" android:targetSdkVersion="29" />
+    <uses-feature android:glEsVersion="0x00030000" android:required="true" />
+
+    <!-- required for WebView -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- modify android:label to set the application name.
+         this name appears in the Settings / Apps listing -->
+
+    <application android:label="Daed Gaem"
+                 android:icon="@drawable/icon"
+                 android:isGame="true"
+                 android:resizeableActivity="true"
+                 android:supportsPictureInPicture="true"
+                 >
+
+        <!-- set android:screenOrientation if you need to lock orientation:
+          https://developer.android.com/guide/topics/manifest/activity-element#screen -->
+
+        <!-- set android:name to fully-qualified name of the main class.
+             this is the root class that Android.csproj passes to PruneMerge. -->
+
+        <!-- modify android:label to set the activity name.
+             this is the name that appears below the app icon. -->
+
+        <activity android:name="com.spaceflint.Activity"
+                  android:label="Daed Gaem"
+                  android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+                  android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+                  android:immersive="true"
+                  android:launchMode="singleTask"
+                  android:maxAspectRatio="9"
+                  android:screenOrientation="userLandscape"
+                  >
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+        </activity>
+
+        <meta-data android:name="android.max_aspect" android:value="9" />
+
+    </application>
+
+    <supports-screens android:smallScreens="true"
+                      android:normalScreens="true"
+                      android:largeScreens="true"
+                      android:xlargeScreens="true"
+                      android:anyDensity="true" />
+
+</manifest>

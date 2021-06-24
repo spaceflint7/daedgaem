@@ -1,0 +1,15 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>
+
+    <!-- build console exe while including Windows Forms -->
+    <OutputType>Exe</OutputType>
+    <UseWindowsForms>true</UseWindowsForms>
+
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="src/windows/*.cs" />
+  </ItemGroup>
+
+</Project>

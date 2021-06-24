@@ -1,0 +1,120 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>
+
+    <!-- build dll -->
+    <OutputType>Library</OutputType>
+    <Optimize>true</Optimize>
+
+    <!-- dont define constants such as WINDOWS -->
+    <DisableImplicitFrameworkDefines>true</DisableImplicitFrameworkDefines>
+
+    <!-- bluebonnet executables -->
+    <BLUEBONNET_DIR Condition="'$(BLUEBONNET_DIR)' == ''">../Bluebonnet/.obj</BLUEBONNET_DIR>
+    <BLUEBONNET_EXE>$(BLUEBONNET_DIR)/Bluebonnet.exe</BLUEBONNET_EXE>
+    <BLUEBONNET_JAR>$(BLUEBONNET_DIR)/Baselib.jar</BLUEBONNET_JAR>
+    <PRUNEMERGE_EXE>$(BLUEBONNET_DIR)/PruneMerge.exe</PRUNEMERGE_EXE>
+    <!-- input Android.jar and generated Android.dll -->
+    <ANDROID_JAR>...</ANDROID_JAR>
+    <ANDROID_DLL>$(OutputPath)/android.dll</ANDROID_DLL>
+    <!-- intermediate APK directory -->
+    <APK_DIR>$(IntermediateOutputPath)/_APK</APK_DIR>
+
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="src/android/*.cs" />
+
+    <AndroidManifest Include="build/AndroidManifest.xml" />
+
+    <ApplicationIcon Include="build/AppIcon.png" />
+
+    <CopyToAssets Include="dos/*.com"></CopyToAssets>
+    <CopyToAssets Include="dos/*.exe"></CopyToAssets>
+    <CopyToAssets Include="assets/*.png"></CopyToAssets>
+
+    <KeystoreFile Include="build/AndroidKeystore.dat" />
+    <KeystorePass Include="build/AndroidKeystore.pwd" />
+
+    <!-- generated Android.dll -->
+    <Reference Include="android">
+        <HintPath>$(ANDROID_DLL)</HintPath>
+    </Reference>
+
+    <!-- input Android.jar -->
+    <Android_Jar Include="$(ANDROID_HOME)/platforms/android-*/android.jar" />
+
+    <!-- Android build-tools -->
+    <Android_Build Include="$(ANDROID_HOME)/build-tools/*/zipalign*" />
+
+  </ItemGroup>
+
+  <!-- locate Android files -->
+  <Target Name="LocateAndroidFiles">
+    <!-- overwrite ANDROID_JAR property repeatedly, to get the last Android_Jar
+         item.  this is in case there are multiple Android.jar files installed. -->
+    <CreateProperty Value="%(Android_Jar.Identity)">
+        <Output TaskParameter="Value" PropertyName="ANDROID_JAR" />
+    </CreateProperty>
+    <Error Condition="! Exists('$(ANDROID_JAR)')"
+         Text="Cannot find Android platform JAR file using property ANDROID_HOME."/>
+    <!-- similarly, search for zipalign to locate the build-tools directory -->
+    <CreateProperty Value="%(Android_Build.RootDir)%(Android_Build.Directory)">
+        <Output TaskParameter="Value" PropertyName="ANDROID_BUILD" />
+    </CreateProperty>
+    <Error Condition="! Exists('$(ANDROID_BUILD)')"
+         Text="Cannot find Android build tools using property ANDROID_HOME."/>
+  </Target>
+
+  <!-- create android.dll -->
+  <Target Name="CreateAndroidLibrary"
+          BeforeTargets="ResolveAssemblyReferences"
+          DependsOnTargets="LocateAndroidFiles"
+          Inputs="$(ANDROID_JAR)" Outputs="$(ANDROID_DLL)">
+    <Error Condition="! (Exists('$(BLUEBONNET_EXE)') And Exists('$(BLUEBONNET_JAR)') And Exists('$(PRUNEMERGE_EXE)'))"
+        Text="Cannot find Bluebonnet.exe or Baselib.jar or PruneMerge.exe using property BLUEBONNET_DIR."/>
+    <Delete Files="$(ANDROID_DLL)" />
+    <Exec Command="&quot;$(BLUEBONNET_EXE)&quot; &quot;$(ANDROID_JAR)&quot; &quot;$(ANDROID_DLL)&quot;" />
+  </Target>
+
+  <!-- convert generated assembly to Java -->
+  <Target Name="ConvertDotNetToJava" AfterTargets="AfterBuild">
+    <RemoveDir Directories="$(APK_DIR)" />
+    <MakeDir Directories="$(APK_DIR)" />
+    <Exec Command="&quot;$(BLUEBONNET_EXE)&quot; &quot;@(MainAssembly->'%(FullPath)')&quot; &quot;$(APK_DIR)/classes0.jar&quot;" />
+  </Target>
+
+  <!-- invoke PruneMerge to discard unreferenced classes -->
+  <Target Name="StripUnreferencedJavaClasses" AfterTargets="ConvertDotNetToJava">
+    <Error Condition="! Exists('@(AndroidManifest)')"
+         Text="Cannot find Android Manifest file."/>
+    <!-- extract fully-qualified main class name from AndroidManifest.xml -->
+    <XmlPeek XmlInputPath="@(AndroidManifest)" Query="//manifest/application/activity/@android:name"
+             Namespaces="&lt;Namespace Prefix='android' Uri='http://schemas.android.com/apk/res/android' /&gt;">
+      <Output TaskParameter="Result" ItemName="ActivityClassInManifest" />
+    </XmlPeek>
+    <CreateProperty Value="@(main_class)">
+      <Output TaskParameter="Value" PropertyName="MAIN_CLASS" />
+    </CreateProperty>
+    <Exec Command="&quot;$(PRUNEMERGE_EXE)&quot; &quot;$(APK_DIR)/classes0.jar&quot; &quot;$(BLUEBONNET_JAR)&quot; &quot;$(APK_DIR)/classes1.jar&quot; &quot;:@(ActivityClassInManifest)&quot;" />
+  </Target>
+
+  <!-- create APK -->
+  <Target Name="CreateApk" AfterTargets="StripUnreferencedJavaClasses">
+    <!-- dex and icon -->
+    <Exec Command="&quot;$(ANDROID_BUILD)/d8&quot; --release --lib &quot;$(ANDROID_JAR)&quot; &quot;$(APK_DIR)/classes1.jar&quot; --output &quot;$(APK_DIR)&quot;" />
+    <Copy SourceFiles="@(ApplicationIcon)" DestinationFiles="$(APK_DIR)/res/drawable/icon.png" />
+    <Exec Command="&quot;$(ANDROID_BUILD)/aapt&quot; package -f -F &quot;$(APK_DIR)/unaligned.apk&quot; -M &quot;@(AndroidManifest)&quot; -S &quot;$(APK_DIR)/res&quot; -I &quot;$(ANDROID_JAR)&quot;" />
+    <Exec Command="&quot;$(ANDROID_BUILD)/aapt&quot; add &quot;unaligned.apk&quot; classes.dex" WorkingDirectory="$(APK_DIR)" />
+    <!-- assets -->
+    <Copy SourceFiles="@(CopyToAssets)" DestinationFolder="$(APK_DIR)/assets" />
+    <Exec Command="&quot;$(ANDROID_BUILD)/aapt&quot; add &quot;unaligned.apk&quot; assets/%(CopyToAssets.Filename)%(CopyToAssets.Extension)" WorkingDirectory="$(APK_DIR)" />
+    <!-- align and sign -->
+    <Exec Command="&quot;$(ANDROID_BUILD)/zipalign&quot; -f 4 &quot;$(APK_DIR)/unaligned.apk&quot; &quot;$(APK_DIR)/aligned.apk&quot;" />
+    <ReadLinesFromFile File="@(KeystorePass)"><Output TaskParameter="Lines" ItemName="KeystorePassword"/></ReadLinesFromFile>
+    <Exec Command="&quot;$(ANDROID_BUILD)/apksigner&quot; sign --ks &quot;@(KeystoreFile)&quot; --ks-pass &quot;pass:@(KeystorePassword)&quot; &quot;$(APK_DIR)/aligned.apk&quot;" />
+    <!-- copy the final APK -->
+    <Copy SourceFiles="$(APK_DIR)/aligned.apk" DestinationFiles="$(OutputPath)/game.apk" />
+  </Target>
+
+</Project>
